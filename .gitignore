@@ -1,0 +1,15 @@
+*.log
+*.config
+*.monitor
+testEmails
+testEmails/*
+tests/test_logs
+tests/test_logs/*
+deprecatedCode
+deprecatedCode/*
+config
+__pycache__
+__pycache__/*
+.idea
+.idea/*
+history.monitor
