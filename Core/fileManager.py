@@ -5,6 +5,7 @@ import localvars
 localvars.load_globals(localvars,globals())
 
 from Core.fileMonitor import *
+from Core.fileReader import parse, differential_read
 
 from PyQt5 import QtCore
 
@@ -13,10 +14,12 @@ class LogChannels:
         self.fd = None
         self.fname = fname
         self.tell = 0
-        self.date = None
+        self.creation_time = None
         self.channels = []
 
+        self.titles = None
         self.labels = []
+        self.units = []
         self.data = []
         self.last_data = {}
         self.last_time = None
@@ -26,47 +29,65 @@ class LogChannels:
 
 
     def update_path_information(self, fname):
-        return
-        if date:
-            self.date = date
-        if self.channel in CHANNELS_WITH_UNDERSCORE:
-            self.fname = f'{self.channel}_{self.date}.log'
-        else:
-            self.fname = f'{self.channel} {self.date}.log'
+        self.close()
+        self.fd = None
+        self.fname = fname
+        self.tell = 0
 
+        # Determine date
+        self.date = determine_creation_time(fname)
 
         return self.fname
 
     def open(self, fname = None):
         if fname:
-            self.fname = fname
+            self.update_path_information(fname)
         self.close()
-        self.date = self.date
-        self.update_path_information(self.date)
         self.fd = open(os.path.join(self.log_path, self.fname), 'rb')
 
 
     def update(self):
-        if not self.fd:
-            return None, None
+        if not localvars.KEEP_LOGFILES_OPEN or not self.fd: # We need to open it
+            self.open()
 
-        titles, data =
+        if self.tell > 0: # differential read, lets update
+            titles, rawdata = differential_read(self.fd, self.titles, self.tell)
+        else:
+            titles, rawdata = parse(self.fd)
+        self.tell = self.fd.tell()
+        self.close()
 
-        if len(flines) == 0:
-            return None, None
-        processed = process_log_file_lines(flines, channel=self.channel, date=self.date)
-        data, labels = process_log_file_rows(processed, channel=self.channel, date=self.date)
-        self.labels = labels
-        self.data += (list(data.items()))
-        if len(self.data) > MAXIMUM_DATAPOINT_HISTORY:
-            self.data = self.data[-MAXIMUM_DATAPOINT_HISTORY:]
+        # If this was first update we need to write some stuff
+        if self.titles is None:
+            self.titles = titles
+            self.labels = [s.split('(')[0].strip(' ') if '(' in s else s for s in self.titles[2:]]
+            self.units = [s.split('(')[1].strip(' ()') if '(' is s else '' for s in self.titles[2:]]
+        ln = rawdata[0] # line number
+        ts = rawdata[1]
+        data = rawdata[2:].T # Remove the line number and time and transpose it
+        data_with_time = {t:dict(zip(self.labels, d)) for t,d in zip(ts, data)}
 
-        last_time, last_data = get_last_entry(data, labels)
-        if last_time is None or last_data is None: # This might prevent the None,None error
-            return None, None
-        self.last_time = last_time
-        self.last_data = last_data
-        return self.last_time, self.last_data
+
+        if len(ln) > 0:
+
+            self.data += (list(data_with_time.items()))
+            if len(self.data) > MAXIMUM_DATAPOINT_HISTORY:
+                self.data = self.data[-MAXIMUM_DATAPOINT_HISTORY:]
+
+            last_time = np.max(ts)
+            last_data = data_with_time[last_time]
+        else:
+            last_time = None
+            last_data = None
+
+        if not (last_time is None or last_data is None):
+            self.last_time = last_time
+            self.last_data = last_data
+
+        if not localvars.KEEP_LOGFILES_OPEN:
+            self.close()
+
+        return last_time, last_data
 
     def close(self):
         if self.fd:
@@ -83,10 +104,14 @@ class FileManager(QThread):
     def __init__(self, log_path = LOG_PATH):
         super().__init__()
         self.log_path = log_path
-        self.logChannels = {}
         self.overseer = Overseer(log_path)
+        self.current_log_file = load_latest_log_file(log_path)
+        #self.current_log_file = self.latest_log_files[np.max(self.latest_log_files.keys())]
+        self.logChannels = LogChannels(self.current_log_file, log_path=log_path)
+        self.logChannels.update()
         self.overseer.changeSignal.connect(self.changeDetected)
-        self.latest_log_files = load_all_possible_log_files(log_path)
+
+        """
         for channel, date in self.latest_log_files.items():
             #print(channel, date)
             if channel in CHANNEL_BLACKLIST:
@@ -95,6 +120,7 @@ class FileManager(QThread):
             self.logChannels[channel].open(date)
             self.logChannels[channel].update()
             self.logChannels[channel].close()
+        """
 
         self.last_emitted_changes = {}
         self.most_recent_changes = {}
@@ -106,12 +132,21 @@ class FileManager(QThread):
         self.allData.emit(self.dumpData())
 
     def dumpData(self):
-        return {ch:lc.data for ch,lc in self.logChannels.items()}
+        # convert list of [(t, {ch:data})] to {ch:(t,d)}
+        ret = {}
+        for t, values in self.logChannels.data:
+            for ch, data in values.items():
+                if ch not in ret:
+                    ret[ch] = []
+                ret[ch].append((t,data))
+        return ret
 
     def run(self):
         self._isRunning = True
         self.overseer.start()
         while self._isRunning:
+            time.sleep(1)
+            continue
             logging.debug("Looping")
             if len(self.changes_read.keys()) > 0:
                 logging.debug("Pending changes emitting")
@@ -127,22 +162,25 @@ class FileManager(QThread):
         self.overseer.wait()
 
     def __del__(self):
-        for channel, logChannel in self.logChannels.items():
-            logChannel.close()
+        self.logChannels.close()
 
-    def changeDetected(self, change, channel, date):
-        logging.debug("Change detected")
-        if channel not in self.logChannels:
-            logging.error(f"Channel {channel} not found in log channels")
+    def changeDetected(self, change, date, fname): # Emit the changes right from here
+        logging.debug(f"Change detected {change} {date} {fname}")
+
+        if fname != self.current_log_file or change == 'created':
+            self.current_log_file = fname
+            self.logChannels.update_path_information(fname)
+        last_time, last_data = self.logChannels.update()
+        if last_time is None or last_data is None:
             return
-        if self.logChannels[channel].date != date:
-            self.logChannels[channel].update_path_information(date)
-        if not self.logChannels[channel].fd:
-            self.logChannels[channel].open()
-        time, data = self.logChannels[channel].update()
-        if channel not in self.changes_read:
-            self.changes_read[channel] = {}
-        self.changes_read[channel].update({time:data})
+        ## Make it into the channel:{time:value} format it needs to be in
+        self.last_emitted_changes = self.changes_read = { # This is required for the case where multiple times but we do not consider that for the triton
+            ch:{last_time:v}
+            for ch,v in last_data.items()
+        }
+        self.processedChanges.emit(self.last_emitted_changes)
+        self.most_recent_changes.update(self.last_emitted_changes)
+
 
     def currentStatus(self):
         return {ch: (lc.last_time, lc.last_data) for ch, lc in self.logChannels.items()}

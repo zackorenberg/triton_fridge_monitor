@@ -23,15 +23,17 @@ class LogFileWatchdog(FileSystemEventHandler, QObject):
 
     def on_created(self, event):
         fname = event.src_path.split(os.sep)[-1]
-        channel = fname[:-len(SUFFIX_FORMAT)].strip(' _')
-        date = fname[-len(SUFFIX_FORMAT):][:-4] # to get rid of the .log extension
-        self.changeSignal.emit('created', channel, date)
+        if fname[:-len(SUFFIX_FORMAT)] != PREFIX_FORMAT:
+            return
+        date = fname[len(PREFIX_FORMAT):-len(EXTENSION)]
+        self.changeSignal.emit('created', date, fname)
 
     def on_modified(self, event):
         fname = event.src_path.split(os.sep)[-1]
-        channel = fname[:-len(SUFFIX_FORMAT)].strip(' _')
-        date = fname[-len(SUFFIX_FORMAT):][:-4]  # to get rid of the .log extension
-        self.changeSignal.emit('modified', channel, date)
+        if fname[:-len(SUFFIX_FORMAT)] != PREFIX_FORMAT:
+            return
+        date = fname[len(PREFIX_FORMAT):-len(EXTENSION)]
+        self.changeSignal.emit('created', date, fname)
 
 
 
@@ -39,8 +41,6 @@ class Overseer(QThread):
     changeSignal = pyqtSignal(str, str, str)
     def __init__(self, log_path = LOG_PATH):
         super().__init__()
-        self.date = datetime.now().strftime(DATE_FORMAT)
-        self.date = '24-06-10'
         self.log_path = log_path
         self.logFileWatchdog = LogFileWatchdog()
         self.logFileWatchdog.changeSignal.connect(self.changeSignal)
@@ -51,9 +51,12 @@ class Overseer(QThread):
 
     def run(self):
         self._isRunning = True
-        if os.path.exists(os.path.join(self.log_path, self.date)):
-            self.schedule = self.observer.schedule(self.logFileWatchdog, os.path.join(self.log_path, self.date), recursive=False)
-            logging.debug(f"Schedule: {str(self.schedule)}")
+        self.schedule = self.observer.schedule(self.logFileWatchdog, self.log_path, recursive=False)
+        self.observer.start()
+        while self._isRunning:
+            time.sleep(1)
+        """
+        logging.debug(f"Schedule: {str(self.schedule)}")
         self.observer.start()
         while self._isRunning:
             current_date = datetime.now().strftime(DATE_FORMAT)
@@ -68,6 +71,7 @@ class Overseer(QThread):
                 self.schedule = self.observer.schedule(self.logFileWatchdog, os.path.join(self.log_path, self.date), recursive=False)
 
             time.sleep(1)
+        """
 
     def stop(self):
         self._isRunning = False
@@ -89,7 +93,7 @@ if __name__ == "__main__":
 
         def stop(self):
             self.overseer.stop()
-            self.overseer.join()
+            self.overseer.wait()
 
         def callback(self, *args):
             print(args)
@@ -147,11 +151,11 @@ if __name__ == "__main__":
             print(args)
             self.mainSignal.emit(*args)
 
-    def test(*args):
+    def print_args(*args):
         print(args)
 
     mt = MainThread()
-    mt.mainSignal.connect(test)
+    mt.mainSignal.connect(print_args)
     mt.run()
 
     while True:

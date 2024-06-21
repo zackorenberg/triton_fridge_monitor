@@ -45,7 +45,10 @@ CHANNELS_WITH_UNDERSCORE = ['heaters', 'Status']
 CHANNEL_BLACKLIST = [f'CH{d+1} T' for d in range(7,16)] + [f'CH{d+1} R' for d in range(7,16)] +[f'CH{d+1} P' for d in range(7,16)]
 
 
-SUFFIX_FORMAT = "%y-%m-%d.log"
+SUFFIX_FORMAT = "%y%m%d %H%M%S.vcl"
+PREFIX_FORMAT = 'log '
+EXTENSION = '.vcl'
+DATETIME_FORMAT = "%y%m%d %H%M%S"
 DATE_FORMAT = "%y-%m-%d"
 TIME_FORMAT = "%H:%M:%S"
 
@@ -56,12 +59,18 @@ PRESSURE_CHANNELS = ['Flowmeter', 'maxigauge']
 STATUS_CHANNELS = ['Status', 'Errors']
 HEATER_CHANNELS = ['heaters']
 
+CHANNELS = ['P2 Condense', 'P1 Tank', 'P5 ForepumpBack', 'P3 Still', 'P4 TurboBack', 'Dewar', 'Input Water Temp', 'Output Water Temp', 'Oil Temp', 'Helium Temp', 'Motor Current', 'Low Pressure', 'High Pressure', 'Channel A t', 'Channel A T', 'Channel A R', 'PT2 Head t', 'PT2 Head T', 'PT2 Head R', 'PT2 Plate t', 'PT2 Plate T', 'PT2 Plate R', 'Still Plate t', 'Still Plate T', 'Still Plate R', 'Cold Plate t', 'Cold Plate T', 'Cold Plate R', 'MC Plate Cernox t', 'MC Plate Cernox T', 'MC Plate Cernox R', 'PT1 Head t', 'PT1 Head T', 'PT1 Head R', 'PT1 Plate t', 'PT1 Plate T', 'PT1 Plate R', 'MC Plate RuO2 t', 'MC Plate RuO2 T', 'MC Plate RuO2 R', 'Magnet t', 'Magnet T', 'Magnet R', 'Channel 10 t', 'Channel 10 T', 'Channel 10 R', 'Channel 11 t', 'Channel 11 T', 'Channel 11 R', 'Channel 12 t', 'Channel 12 T', 'Channel 12 R', 'Channel 13 t', 'Channel 13 T', 'Channel 13 R', 'Channel 14 t', 'Channel 14 T', 'Channel 14 R', 'Channel 15 t', 'Channel 15 T', 'Channel 15 R']
+
+PRESSURE_CHANNELS = sorted([c for c in CHANNELS if c[0] == 'P' and c[1].isnumeric()])
+TEMPERATURE_CHANNELS = sorted([c for c in CHANNELS if 'Temp' in c])
+CH_CHANNELS = sorted([c for c in CHANNELS if 'Channel' in c])
+REST_CHANNELS = sorted([c for c in CHANNELS if c not in PRESSURE_CHANNELS and c not in TEMPERATURE_CHANNELS and c not in CH_CHANNELS])
+
 MONITOR_CHANNELS = {
-    'Thermometry':THERMOMETRY_CHANNELS,
-    'Valves':VALVE_CHANNELS,
+    'Thermometry':TEMPERATURE_CHANNELS,
     'Pressure and Flow':PRESSURE_CHANNELS,
-    'Status':STATUS_CHANNELS,
-    'Heaters':HEATER_CHANNELS,
+    'Channels':CH_CHANNELS,
+    'Misc':REST_CHANNELS,
 }
 
 
@@ -81,7 +90,7 @@ SPLIT_MONITOR_WIDGETS = True # This will make it so monitor selector is left, ac
 
 CONFIG_FILE = 'config'
 CONFIG_MANDATORY_FIELDS = ['LOG_PATH', 'RECIPIENTS', 'SENDER', 'PASSWORD', 'SMTP_SERVER', 'SMTP_PORT']
-CONFIG_OPTIONAL_FIELDS = ['CHANNEL_BLACKLIST', 'VERBOSE', 'DEBUG_MODE']
+CONFIG_OPTIONAL_FIELDS = ['CHANNEL_BLACKLIST', 'VERBOSE', 'DEBUG_MODE', 'KEEP_LOGFILES_OPEN']
 
 CONFIGTYPE_FIELDS_DIRECTORY = ['LOG_PATH']
 CONFIGTYPE_FIELDS_EMAIL = ['RECIPIENTS']
@@ -91,6 +100,11 @@ CONFIG_MAILER_FIELDS = ['RECIPIENTS', 'SENDER', 'PASSWORD', 'SMTP_SERVER', 'SMTP
 
 CHANGE_PROCESS_CHECK = 1 # Number of seconds between checking for changes (We do this instead of immediate processing because many files sometimes get modified concurrently and we want as accurate a result as possible when a monitor goes off
 ICON_PATH = 'Resources/TritonIcon.ico'
+
+KEEP_LOGFILES_OPEN = True
+
+MAX_CHANNELS_COUNT: int = 128
+
 
 def load_globals(module, global_dict):
     attrs = []

@@ -1,4 +1,13 @@
 # Similar to log file reader program, but with more specific use cases
+## From https://github.com/StSav012/VeriCold_log_parser
+import _io
+import os
+from pathlib import Path
+import numpy as np
+from numpy.typing import NDArray
+
+
+
 import localvars
 localvars.load_globals(localvars, globals())
 import os
@@ -29,6 +38,58 @@ class LogFile:
 
 
 
+
+def parse(filename: str | Path | _io.BufferedReader, max_channels_count:int=MAX_CHANNELS_COUNT) -> tuple[list[str], NDArray[np.float64]]:
+    def _parse(file_handle: _io.BufferedReader) -> tuple[list[str], NDArray[np.float64]]:
+        file_handle.seek(0x1800 + 32)
+        titles: list[str] = [file_handle.read(32).strip(b'\0').decode('ascii')
+                             for _ in range(max_channels_count - 1)]
+        titles = list(filter(None, titles))
+        file_handle.seek(0x3000)
+        # noinspection PyTypeChecker
+        dt: np.dtype = np.dtype(np.float64).newbyteorder('<')
+        data: NDArray[np.float64] = np.frombuffer(file_handle.read(), dtype=dt)
+        i: int = 0
+        data_item_size = None
+        while i < data.size:
+            if data_item_size is None:
+                data_item_size = int(round(data[i] / dt.itemsize))
+            elif int(round(data[i] / dt.itemsize)) != data_item_size:
+                raise RuntimeError('Inconsistent data: some records are faulty')
+            i += int(round(data[i] / dt.itemsize))
+        if data_item_size is None:
+            return [], np.empty(0)
+        return titles, data.reshape((data_item_size, -1), order='F')[1:(len(titles) + 1)].astype(np.float64)
+
+    if (isinstance(filename, _io.BufferedReader) or hasattr(filename, 'seek')):
+        return _parse(filename)
+
+    with open(filename, 'rb') as f_in:
+        return _parse(f_in)
+
+
+def differential_read(filename: str | Path | _io.BufferedReader, titles: list, told_pos: int ):
+    def _parse(file_handle : _io.BufferedReader):
+        file_handle.seek(told_pos)
+        dt: np.dtype = np.dtype(np.float64).newbyteorder('<')
+        data: NDArray[np.float64] = np.frombuffer(file_handle.read(), dtype=dt)
+        i: int = 0
+        data_item_size = None
+        while i < data.size:
+            if data_item_size is None:
+                data_item_size = int(round(data[i] / dt.itemsize))
+            elif int(round(data[i] / dt.itemsize)) != data_item_size:
+                raise RuntimeError('Inconsistent data: some records are faulty')
+            i += int(round(data[i] / dt.itemsize))
+        if data_item_size is None:
+            return [], np.empty(0)
+        return titles, data.reshape((data_item_size, -1), order='F')[1:(len(titles) + 1)].astype(np.float64)
+
+    if (isinstance(filename, _io.BufferedReader) or hasattr(filename, 'seek')):
+        return _parse(filename)
+
+    with open(filename, 'rb') as f_in:
+        return _parse(f_in)
 
 def process_log_file_lines(lines, channel, date):
     """

@@ -29,6 +29,7 @@ class MonitorsWidget(QtWidgets.QWidget):
 
     def init_ui(self, values):
         self.values = values
+        print(values)
         justify = {ch_type: 0 for ch_type in MONITOR_CHANNELS.keys()}
         for ch_type, channels in MONITOR_CHANNELS.items():
             for channel in channels:
