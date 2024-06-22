@@ -78,6 +78,11 @@ class MainApplication(QtWidgets.QMainWindow):
         self.consoleWidget = ConsoleWidget()
         stdout.printToConsole.connect(self.consoleWidget.printToConsole)
         self.fileManager = FileManager(log_path)
+        ### Add extra labels to misc
+        localvars.MISC_CHANNELS += [l for l in self.fileManager.logChannels.labels if all([l not in localvars.MONITOR_CHANNELS[ch] for ch in localvars.MONITOR_CHANNELS.keys() if ch != 'Misc'])]
+        if 'Misc' in localvars.MONITOR_CHANNELS:
+            localvars.MONITOR_CHANNELS['Misc'] = localvars.MISC_CHANNELS
+        ###
         self.monitorsWidget = MonitorsWidget()
         self.monitorManager = MonitorManager(self)
         self.activeMonitorWidget = ActiveMonitorsWidget()
@@ -467,6 +472,7 @@ class MainApplication(QtWidgets.QMainWindow):
 
 
     def action_restartapplication(self):
+        self.closeEvent = super().closeEvent  # Prevent asking if you want to quit
         if self.app:
             self.close()
             self.app.exit(RESTART_EXIT_CODE)
@@ -512,7 +518,13 @@ if __name__ == "__main__":
         w.init_threads()
         w.load_monitors(fname='history.monitor')
         w.show()
-        exitcode = w.app.exec()
+        try:
+            exitcode = w.app.exec()
+        except Exception as e:
+            logging.error(f"A fatal error occured during operation, relaunching: {str(e)}")
+            print(f"A fatal error occured during operation: {str(e)}")
+            print(traceback.format_exc())
+            exitcode = RESTART_EXIT_CODE
         w.export_monitors(fname='history.monitor')
         w.close_threads()
         if exitcode == RESTART_EXIT_CODE:

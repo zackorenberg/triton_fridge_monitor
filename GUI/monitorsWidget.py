@@ -29,7 +29,6 @@ class MonitorsWidget(QtWidgets.QWidget):
 
     def init_ui(self, values):
         self.values = values
-        print(values)
         justify = {ch_type: 0 for ch_type in MONITOR_CHANNELS.keys()}
         for ch_type, channels in MONITOR_CHANNELS.items():
             for channel in channels:
@@ -111,6 +110,8 @@ class MonitorsWidget(QtWidgets.QWidget):
             return
         try:
             for channel, values_object in obj.items():
+                if channel in localvars.CHANNEL_BLACKLIST:
+                    continue
                 if channel not in self.allMonitors:
                     logging.error(f"Invalid channel found: {channel}")
                     continue

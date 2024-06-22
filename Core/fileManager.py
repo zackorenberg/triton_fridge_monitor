@@ -54,11 +54,13 @@ class LogChannels:
             titles, rawdata = differential_read(self.fd, self.titles, self.tell)
         else:
             titles, rawdata = parse(self.fd)
+
         self.tell = self.fd.tell()
         self.close()
 
         # If this was first update we need to write some stuff
-        if self.titles is None:
+        # Lets just right stuff anyways, if anything it'll warn that a new channel exists
+        if True or self.titles is None or len(self.titles) < len(titles) or not all([t1==t2 for t1,t2 in zip(self.titles, titles)]):
             self.titles = titles
             self.labels = [s.split('(')[0].strip(' ') if '(' in s else s for s in self.titles[2:]]
             self.units = [s.split('(')[1].strip(' ()') if '(' in s else '' for s in self.titles[2:]]
@@ -69,12 +71,11 @@ class LogChannels:
 
 
         if len(ln) > 0:
-
             self.data += (list(data_with_time.items()))
             if len(self.data) > MAXIMUM_DATAPOINT_HISTORY:
                 self.data = self.data[-MAXIMUM_DATAPOINT_HISTORY:]
 
-            last_time = np.max(ts)
+            last_time = max(ts)
             last_data = data_with_time[last_time]
         else:
             last_time = None
@@ -86,7 +87,6 @@ class LogChannels:
 
         if not localvars.KEEP_LOGFILES_OPEN:
             self.close()
-
         return last_time, last_data
 
     def close(self):
@@ -108,7 +108,8 @@ class FileManager(QThread):
         self.current_log_file = load_latest_log_file(log_path)
         #self.current_log_file = self.latest_log_files[np.max(self.latest_log_files.keys())]
         self.logChannels = LogChannels(self.current_log_file, log_path=log_path)
-        self.logChannels.update()
+        self.__init_logchannel()
+
         self.overseer.changeSignal.connect(self.changeDetected)
 
         """
@@ -127,6 +128,24 @@ class FileManager(QThread):
 
         self.changes_read = {}
         self._isRunning = False
+
+    def __init_logchannel(self):
+        try:
+            self.logChannels.update()
+        except Exception as e:
+            # Log file is invalid, will try older ones until one is valid
+            for date, fname in sorted(load_all_log_files(self.log_path).items(), key=lambda x:x[0], reverse=True):
+                try:
+                    self.logChannels.update_path_information(fname)
+                    self.logChannels.update()
+                    assert (self.logChannels.last_time is not None)
+                except Exception as e:
+                    logging.debug(f"Error reading {fname}: {str(e)}")
+                else:
+                    break
+        finally:
+            if self.logChannels.last_time is None:
+                logging.error("No valid log files found")
 
     def emitData(self):
         self.allData.emit(self.dumpData())
@@ -166,11 +185,25 @@ class FileManager(QThread):
 
     def changeDetected(self, change, date, fname): # Emit the changes right from here
         logging.debug(f"Change detected {change} {date} {fname}")
+        if change == 'deleted':
+            self.handleDeletionEvent(date, fname)
+            return
 
         if fname != self.current_log_file or change == 'created':
             self.current_log_file = fname
             self.logChannels.update_path_information(fname)
-        last_time, last_data = self.logChannels.update()
+        try:
+            last_time, last_data = self.logChannels.update()
+        except Exception as e:
+            logging.warning(f"An error encountered while updating log file: {str(e)}. Rereading")
+            self.logChannels.update_path_information(self.logChannels.fname)
+            try:
+                last_time, last_data = self.logChannels.update()
+            except Exception as e:
+                logging.error(f"Could not read log file! Monitor system may no longer work: {str(e)}")
+                print(f"Could not read log file! Monitor system may no longer work: {str(e)}")
+                return
+
         if last_time is None or last_data is None:
             return
         ## Make it into the channel:{time:value} format it needs to be in
@@ -181,6 +214,16 @@ class FileManager(QThread):
         self.processedChanges.emit(self.last_emitted_changes)
         self.most_recent_changes.update(self.last_emitted_changes)
 
+    def handleDeletionEvent(self, date, fname):
+        if fname == self.logChannels.fname:
+            logging.warning("Current logfile was deleted, searching for next newest one")
+            print("Current logfile was deleted, searching for next newest one")
+        self.__init_logchannel()  # Since we are finding an older log channel, we don't need to send an alert
+        if localvars.EMIT_ON_LOGFILE_DELETION:
+            self.processedChanges.emit({  # This is required for the case where multiple times but we do not consider that for the triton
+                ch: {self.logChannels.last_time: v}
+                for ch, v in self.logChannels.last_data.items()
+            })
 
     def currentStatus(self):
         return {ch: (self.logChannels.last_time, v) for ch,v in self.logChannels.last_data.items()}

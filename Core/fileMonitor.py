@@ -35,7 +35,12 @@ class LogFileWatchdog(FileSystemEventHandler, QObject):
         date = fname[len(PREFIX_FORMAT):-len(EXTENSION)]
         self.changeSignal.emit('created', date, fname)
 
-
+    def on_deleted(self, event):
+        fname = event.src_path.split(os.sep)[-1]
+        if fname[:-len(SUFFIX_FORMAT)] != PREFIX_FORMAT:
+            return
+        date = fname[len(PREFIX_FORMAT):-len(EXTENSION)]
+        self.changeSignal.emit('deleted', date, fname)
 
 class Overseer(QThread):
     changeSignal = pyqtSignal(str, str, str)

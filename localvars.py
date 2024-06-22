@@ -89,7 +89,7 @@ THERMOMETERS = [
 CHANNEL_BLACKLIST = ['Channel A t', 'PT2 Head t', 'PT2 Plate t', 'Still Plate t', 'Cold Plate t', 'MC Plate Cernox t', 'PT1 Head t', 'PT1 Plate t', 'MC Plate RuO2 t', 'Magnet t', 'Channel 10 t', 'Channel 11 t', 'Channel 12 t', 'Channel 13 t', 'Channel 14 t', 'Channel 15 t']
 CHANNEL_BLACKLIST = [f"{channel} t" for channel in THERMOMETERS] + ['Channel 10 t', 'Channel 11 t', 'Channel 12 t', 'Channel 13 t', 'Channel 14 t', 'Channel 15 t']
 
-PRESSURE_CHANNELS = ['P2 Condense', 'P1 Tank', 'P5 ForepumpBack', 'P3 Still', 'P4 TurboBack', 'Dewar']
+PRESSURE_CHANNELS = ['P1 Tank', 'P2 Condense', 'P3 Still', 'P4 TurboBack', 'P5 ForepumpBack', 'Dewar']
 COMPRESSOR_CHANNELS = ['Input Water Temp', 'Output Water Temp', 'Oil Temp', 'Helium Temp', 'Motor Current', 'Low Pressure', 'High Pressure',]
 THERMOMETER_TEMPERATURE_CHANNELS = [f"{channel} T" for channel in THERMOMETERS]
 THERMOMETER_RESISTANCE_CHANNELS = [f"{channel} R" for channel in THERMOMETERS]
@@ -135,6 +135,7 @@ KEEP_LOGFILES_OPEN = True
 
 MAX_CHANNELS_COUNT: int = 128
 
+EMIT_ON_LOGFILE_DELETION = False
 
 def load_globals(module, global_dict):
     attrs = []
