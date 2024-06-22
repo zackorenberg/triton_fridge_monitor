@@ -40,10 +40,7 @@ ERROR_CHANNEL = ['Errors']
 MAXIGAUGE_CHANNEL = ['maxigauge']
 VALVECONTROL_CHANNEL = ['Channels']
 
-CHANNELS_WITH_UNDERSCORE = ['heaters', 'Status']
-
-CHANNEL_BLACKLIST = [f'CH{d+1} T' for d in range(7,16)] + [f'CH{d+1} R' for d in range(7,16)] +[f'CH{d+1} P' for d in range(7,16)]
-
+CHANNELS_WITH_UNDERSCORE = []
 
 SUFFIX_FORMAT = "%y%m%d %H%M%S.vcl"
 PREFIX_FORMAT = 'log '
@@ -52,25 +49,58 @@ DATETIME_FORMAT = "%y%m%d %H%M%S"
 DATE_FORMAT = "%y-%m-%d"
 TIME_FORMAT = "%H:%M:%S"
 
-THERMOMETRY_CHANNELS = [f'CH{d+1} T' for d in range(16)] + [f'CH{d+1} R' for d in range(16)] +[f'CH{d+1} P' for d in range(16)]
 
-VALVE_CHANNELS = ['Channels']
-PRESSURE_CHANNELS = ['Flowmeter', 'maxigauge']
-STATUS_CHANNELS = ['Status', 'Errors']
-HEATER_CHANNELS = ['heaters']
+ALL_CHANNELS = [
+    'P2 Condense', 'P1 Tank', 'P5 ForepumpBack', 'P3 Still', 'P4 TurboBack',
+    'Dewar',
+    'Input Water Temp', 'Output Water Temp', 'Oil Temp', 'Helium Temp',
+    'Motor Current', 'Low Pressure', 'High Pressure',
+    'Channel A t', 'Channel A T', 'Channel A R',
+    'PT2 Head t', 'PT2 Head T', 'PT2 Head R',
+    'PT2 Plate t', 'PT2 Plate T', 'PT2 Plate R',
+    'Still Plate t', 'Still Plate T', 'Still Plate R',
+    'Cold Plate t', 'Cold Plate T', 'Cold Plate R',
+    'MC Plate Cernox t', 'MC Plate Cernox T', 'MC Plate Cernox R',
+    'PT1 Head t', 'PT1 Head T', 'PT1 Head R',
+    'PT1 Plate t', 'PT1 Plate T', 'PT1 Plate R',
+    'MC Plate RuO2 t', 'MC Plate RuO2 T', 'MC Plate RuO2 R',
+    'Magnet t', 'Magnet T', 'Magnet R',
+    'Channel 10 t', 'Channel 10 T', 'Channel 10 R',
+    'Channel 11 t', 'Channel 11 T', 'Channel 11 R',
+    'Channel 12 t', 'Channel 12 T', 'Channel 12 R',
+    'Channel 13 t', 'Channel 13 T', 'Channel 13 R',
+    'Channel 14 t', 'Channel 14 T', 'Channel 14 R',
+    'Channel 15 t', 'Channel 15 T', 'Channel 15 R'
+]
 
-CHANNELS = ['P2 Condense', 'P1 Tank', 'P5 ForepumpBack', 'P3 Still', 'P4 TurboBack', 'Dewar', 'Input Water Temp', 'Output Water Temp', 'Oil Temp', 'Helium Temp', 'Motor Current', 'Low Pressure', 'High Pressure', 'Channel A t', 'Channel A T', 'Channel A R', 'PT2 Head t', 'PT2 Head T', 'PT2 Head R', 'PT2 Plate t', 'PT2 Plate T', 'PT2 Plate R', 'Still Plate t', 'Still Plate T', 'Still Plate R', 'Cold Plate t', 'Cold Plate T', 'Cold Plate R', 'MC Plate Cernox t', 'MC Plate Cernox T', 'MC Plate Cernox R', 'PT1 Head t', 'PT1 Head T', 'PT1 Head R', 'PT1 Plate t', 'PT1 Plate T', 'PT1 Plate R', 'MC Plate RuO2 t', 'MC Plate RuO2 T', 'MC Plate RuO2 R', 'Magnet t', 'Magnet T', 'Magnet R', 'Channel 10 t', 'Channel 10 T', 'Channel 10 R', 'Channel 11 t', 'Channel 11 T', 'Channel 11 R', 'Channel 12 t', 'Channel 12 T', 'Channel 12 R', 'Channel 13 t', 'Channel 13 T', 'Channel 13 R', 'Channel 14 t', 'Channel 14 T', 'Channel 14 R', 'Channel 15 t', 'Channel 15 T', 'Channel 15 R']
+THERMOMETERS = [
+    'Channel A',
+    'PT2 Head',
+    'PT2 Plate',
+    'Still Plate',
+    'Cold Plate',
+    'MC Plate Cernox',
+    'PT1 Head',
+    'PT1 Plate',
+    'MC Plate RuO2',
+    'Magnet',
+]
 
-PRESSURE_CHANNELS = sorted([c for c in CHANNELS if c[0] == 'P' and c[1].isnumeric()])
-TEMPERATURE_CHANNELS = sorted([c for c in CHANNELS if 'Temp' in c])
-CH_CHANNELS = sorted([c for c in CHANNELS if 'Channel' in c])
-REST_CHANNELS = sorted([c for c in CHANNELS if c not in PRESSURE_CHANNELS and c not in TEMPERATURE_CHANNELS and c not in CH_CHANNELS])
+CHANNEL_BLACKLIST = ['Channel A t', 'PT2 Head t', 'PT2 Plate t', 'Still Plate t', 'Cold Plate t', 'MC Plate Cernox t', 'PT1 Head t', 'PT1 Plate t', 'MC Plate RuO2 t', 'Magnet t', 'Channel 10 t', 'Channel 11 t', 'Channel 12 t', 'Channel 13 t', 'Channel 14 t', 'Channel 15 t']
+CHANNEL_BLACKLIST = [f"{channel} t" for channel in THERMOMETERS] + ['Channel 10 t', 'Channel 11 t', 'Channel 12 t', 'Channel 13 t', 'Channel 14 t', 'Channel 15 t']
+
+PRESSURE_CHANNELS = ['P2 Condense', 'P1 Tank', 'P5 ForepumpBack', 'P3 Still', 'P4 TurboBack', 'Dewar']
+COMPRESSOR_CHANNELS = ['Input Water Temp', 'Output Water Temp', 'Oil Temp', 'Helium Temp', 'Motor Current', 'Low Pressure', 'High Pressure',]
+THERMOMETER_TEMPERATURE_CHANNELS = [f"{channel} T" for channel in THERMOMETERS]
+THERMOMETER_RESISTANCE_CHANNELS = [f"{channel} R" for channel in THERMOMETERS]
+MISC_CHANNELS = []
 
 MONITOR_CHANNELS = {
-    'Thermometry':TEMPERATURE_CHANNELS,
     'Pressure and Flow':PRESSURE_CHANNELS,
-    'Channels':CH_CHANNELS,
-    'Misc':REST_CHANNELS,
+    'Compressor':COMPRESSOR_CHANNELS,
+    'Thermometry: Temperature':THERMOMETER_TEMPERATURE_CHANNELS,
+    'Thermometry: Resistance':THERMOMETER_RESISTANCE_CHANNELS,
+    'Misc':MISC_CHANNELS,
 }
 
 

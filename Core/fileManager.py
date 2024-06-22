@@ -61,7 +61,7 @@ class LogChannels:
         if self.titles is None:
             self.titles = titles
             self.labels = [s.split('(')[0].strip(' ') if '(' in s else s for s in self.titles[2:]]
-            self.units = [s.split('(')[1].strip(' ()') if '(' is s else '' for s in self.titles[2:]]
+            self.units = [s.split('(')[1].strip(' ()') if '(' in s else '' for s in self.titles[2:]]
         ln = rawdata[0] # line number
         ts = rawdata[1]
         data = rawdata[2:].T # Remove the line number and time and transpose it
@@ -183,6 +183,7 @@ class FileManager(QThread):
 
 
     def currentStatus(self):
+        return {ch: (self.logChannels.last_time, v) for ch,v in self.logChannels.last_data.items()}
         return {ch: (lc.last_time, lc.last_data) for ch, lc in self.logChannels.items()}
 
     def mostRecentChanges(self):
