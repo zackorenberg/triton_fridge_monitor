@@ -182,7 +182,7 @@ class coolerSysLogMonitorWidget(QtWidgets.QWidget):
 
 
 class coolerSysLogWidget(QtWidgets.QWidget):
-    coolerSysLogMonitorTriggered = QtCore.pyqtSignal(str)
+    coolerSysLogMonitorTriggered = QtCore.pyqtSignal(str, list)
     coolerSysLogPathChanged = QtCore.pyqtSignal(str)
     def __init__(self, coolersyslog_path=None):
         super().__init__()
@@ -230,14 +230,15 @@ class coolerSysLogWidget(QtWidgets.QWidget):
     def processesNewLines(self, lines):
         for line in lines:
             if any([m in line for m in self.monitors]):
-                self.coolerSysLogMonitorTriggered.emit(line)
+                self.coolerSysLogMonitorTriggered.emit(line, [m for m in self.monitors if m in line])
 
     def monitorChange(self):
         self.monitors = self.monitorWidget.get_monitors()
 
-    def monitorTriggered(self, s):
-        logging.debug(f"coolerSysLog Monitor Triggered: {s}")
-        print(f"coolerSysLog Monitor Triggered: {s}")
+    def monitorTriggered(self, s, monitors):
+        logging.debug(f"coolerSysLog Monitor Triggered: {s}\ntriggered monitor(s): {', '.join(monitors)}")
+        print(f"coolerSysLog Monitors Triggered: {s}")
+        print(f"triggered monitor(s): {', '.join(monitors)}")
 
 
 if __name__ == "__main__":
