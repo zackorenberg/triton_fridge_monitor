@@ -33,7 +33,7 @@ class LogFileWatchdog(FileSystemEventHandler, QObject):
         if fname[:-len(SUFFIX_FORMAT)] != PREFIX_FORMAT:
             return
         date = fname[len(PREFIX_FORMAT):-len(EXTENSION)]
-        self.changeSignal.emit('created', date, fname)
+        self.changeSignal.emit('modified', date, fname)
 
     def on_deleted(self, event):
         fname = event.src_path.split(os.sep)[-1]
