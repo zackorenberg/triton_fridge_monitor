@@ -52,6 +52,8 @@ from GUI.monitorsWidget import MonitorsWidget
 from GUI.activeMonitorsWidget import ActiveMonitorsWidget
 
 from GUI.consoleWidget import Printerceptor, ConsoleWidget
+
+from GUI.coolerSysLogWidget import coolerSysLogWidget
 import sys
 import json
 sys.stdout = stdout = Printerceptor()
@@ -86,6 +88,7 @@ class MainApplication(QtWidgets.QMainWindow):
         self.monitorsWidget = MonitorsWidget()
         self.monitorManager = MonitorManager(self)
         self.activeMonitorWidget = ActiveMonitorsWidget()
+        self.coolerSysLogWidget = coolerSysLogWidget()
 
 
         self.mailer = Mailer(localvars.RECIPIENTS)
@@ -112,6 +115,8 @@ class MainApplication(QtWidgets.QMainWindow):
         # Connect monitorsWidget to here so we can actually set up monitors
         self.monitorSignal.connect(self.monitorSignalCallback)
 
+        # Connect coolerSysLogWidget to here (TODO: set it up directly to mailer)
+        self.coolerSysLogWidget.coolerSysLogMonitorTriggered.connect(self.coolerSysLogMonitorCallback)
 
         # Add icon
         self.setWindowIcon(QtGui.QIcon(localvars.ICON_PATH))
@@ -169,6 +174,14 @@ class MainApplication(QtWidgets.QMainWindow):
         self.dock_activeMonitorWidget.setWidget(self.activeMonitorWidget)
         self.dock_activeMonitorWidget.setContentsMargins(0,0,0,0)
 
+        # coolerSysLogMonitorsWidget
+        self.dock_coolerSysLogMonitorWidget = QtWidgets.QDockWidget('coolerSysLog Monitors')
+        self.dock_coolerSysLogMonitorWidget.setFeatures(QtWidgets.QDockWidget.DockWidgetFloatable |
+                 QtWidgets.QDockWidget.DockWidgetMovable)
+        #self.dock_coolerSysLogMonitorWidget.setFloating(True)
+        self.dock_coolerSysLogMonitorWidget.setWidget(self.coolerSysLogWidget)
+        self.dock_coolerSysLogMonitorWidget.setContentsMargins(0,0,0,0)
+
 
         # Add docks to main window
         if localvars.SPLIT_MONITOR_WIDGETS:
@@ -187,6 +200,9 @@ class MainApplication(QtWidgets.QMainWindow):
 
             self.splitDockWidget(self.dock_monitorsWidget, self.dock_consoleWidget, QtCore.Qt.Orientation.Vertical)
 
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.LeftDockWidgetArea,self.dock_coolerSysLogMonitorWidget)
+        self.tabifyDockWidget(self.dock_monitorsWidget, self.dock_coolerSysLogMonitorWidget)
+        self.dock_monitorsWidget.raise_()
         # deal with sizing:
         if localvars.FIX_CONSOLE_HEIGHT:
             size = self.consoleWidget.sizeHint() # fix it? idr why I had this
@@ -240,6 +256,9 @@ class MainApplication(QtWidgets.QMainWindow):
             logging.info(f"Monitor {obj['monitor']} deactivated, (channel={obj['channel']}, subchannel={obj['subchannel']}, type={obj['type']}, values={obj['values']}, variables={obj['variables']})")
             print(f"Monitor {obj['monitor']} deactivated")
 
+    def coolerSysLogMonitorCallback(self, string, monitors):
+        print("Implement me!")
+        logging.info("Implement me!")
 
     def resizeWidgets(self):
         #print("resizeWidgets")
