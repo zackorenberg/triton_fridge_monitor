@@ -30,6 +30,20 @@ def load_latest_log_file(log_path = LOG_PATH):
             latest_file = file
     return latest_file
 
+
+def load_latest_coolersyslog_file(log_path = localvars.COOLERSYSLOG_PATH):
+    files = os.listdir(log_path)
+    latest_time = 0
+    latest_file = None
+    for file in files:
+        if not (file[:len('CoolerSysLog ')] == 'CoolerSysLog ' and file[-4:] == '.slg'):
+            continue
+        creation_time = datetime.strptime(file[len('CoolerSysLog '):-4], DATETIME_FORMAT).timestamp()
+        if creation_time > latest_time:
+            latest_time = creation_time
+            latest_file = file
+    return latest_file
+
 def determine_creation_time(fname, log_path = LOG_PATH):
     if fname[:-len(SUFFIX_FORMAT)] != PREFIX_FORMAT:
         return

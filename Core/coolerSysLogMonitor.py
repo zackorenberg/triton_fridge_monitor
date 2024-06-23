@@ -3,6 +3,7 @@ localvars.load_globals(localvars,globals())
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logger
+from Core.fileUtilities import load_latest_coolersyslog_file
 
 logging = logger.Logger(__file__)
 
@@ -45,6 +46,40 @@ class coolerSysLogManager(QObject):
         self.positions = {}
         self._isRunning = False
 
+    def getLatestLogLines(self, max_lines=localvars.COOLERSYSLOG_MAX_LINES_IN_READER):
+        def tail(handle, max_lines, block_size=1024):
+            handle.seek(0,2) # Go to end of file
+            eof = handle.tell()
+            block_end_byte, block_number, blocks, lines = handle.tell(), 1, [], max_lines
+
+            while lines >= 0 and block_end_byte > 0: # WHile there is still lines and files to read
+                if (block_end_byte - block_size > 0):  # Read full block
+                    handle.seek(eof - block_number*block_size)
+                    blocks.append(handle.read(block_size))
+                else:  # File too small, just read from beginning
+                    handle.seek(0)
+                    blocks.append(handle.read(block_end_byte))
+                lines -= blocks[-1].count('\n')
+                block_end_byte -= block_size
+                block_number += 1
+            all_read = ''.join(reversed(blocks))
+            return all_read.splitlines(True)[-max_lines:]  # Keep the newlines
+
+        if self.coolersyslog_path and self.coolersyslog_path != '':
+            latest_file = load_latest_coolersyslog_file(self.coolersyslog_path)
+
+            if latest_file in self.fds and localvars.KEEP_LOGFILES_OPEN:
+                fd = self.fds[latest_file]
+                latest_lines = tail(fd, max_lines)
+                fd.seek(self.positions[latest_file])
+            else:
+                with open(os.path.join(self.coolersyslog_path, latest_file), 'r') as fd:
+                    latest_lines = tail(fd, max_lines)
+            return latest_lines
+        else:
+            return []
+
+
     def changeCallback(self, change, fname):
         if self.coolersyslog_path is None:
             return
@@ -65,8 +100,10 @@ class coolerSysLogManager(QObject):
                 self.fds[fname].seek(self.positions[fname])
 
             lines = self.fds[fname].readlines()
+            self.positions[fname] = self.fds[fname].tell()
             if len(lines) > 0:
                 self.coolerSysLogLines.emit(lines)
+
             if not localvars.KEEP_LOGFILES_OPEN:
                 fd = self.fds.pop(fname)
                 fd.close()

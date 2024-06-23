@@ -71,13 +71,22 @@ class coolerSysLogReaderWidget(QtWidgets.QWidget):
             return str(self.coolerSysLogTextEdit.toPlainText())
         else:
             #self.coolerSysLogTextEdit.setPlainText("\n".join(self.addLogTexts().split("\n")[-400:]) + "".join(lines)) # No \n join because it is a direct readlines()
-            self.coolerSysLogTextEdit.setPlainText("\n".join((self.addLogTexts().split("\n") + [l.rstrip('\n') for l in lines if l.rstrip('\n')])[-localvars.COOLERSYSLOG_MAX_LINES_IN_READER:])) # No \n join because it is a direct readlines()
+            #self.coolerSysLogTextEdit.setPlainText("\n".join((self.addLogTexts().split("\n") + [l.rstrip('\n') for l in lines if l.rstrip('\n')])[-localvars.COOLERSYSLOG_MAX_LINES_IN_READER:])) # No \n join because it is a direct readlines()
+            self.coolerSysLogTextEdit.setPlainText("".join(
+                (self.addLogTexts().splitlines(True) + lines)[-localvars.COOLERSYSLOG_MAX_LINES_IN_READER:]
+            ))
             self.automaticScroll()
+
+    def resetLogTexts(self):
+        """ reset the log box """
+        self.coolerSysLogTextEdit.setPlainText('')
+        self.automaticScroll()
 
     def automaticScroll(self):
         """ automatically scrolls so latest message is present """
         sb = self.coolerSysLogTextEdit.verticalScrollBar()
         sb.setValue(sb.maximum())
+        self.coolerSysLogTextEdit.moveCursor(QtGui.QTextCursor.MoveOperation.End)
 
 class coolerSysLogMonitorWidget(QtWidgets.QWidget):
     coolerSysLogMonitorChanged = QtCore.pyqtSignal()
@@ -189,6 +198,11 @@ class coolerSysLogWidget(QtWidgets.QWidget):
     coolerSysLogPathChanged = QtCore.pyqtSignal(str)
     def __init__(self, coolersyslog_path=None):
         super().__init__()
+        import os
+        if coolersyslog_path is not None and not os.path.exists(coolersyslog_path):
+            if coolersyslog_path != '':
+                logging.error(f'Invalid CoolerSysLog Path: {coolersyslog_path}')
+            coolersyslog_path = None
         self.coolersyslog_path = coolersyslog_path
 
         self.directoryWidget = coolerSysLogPathWidget()
@@ -213,6 +227,9 @@ class coolerSysLogWidget(QtWidgets.QWidget):
         # Create and start manager
         self.manager = coolerSysLogManager(coolersyslog_path=coolersyslog_path)
         self.manager.startObserver()
+        # Load latest log lines if possible
+        if coolersyslog_path and coolersyslog_path != '':
+            self.loadLatestLogLines()
 
         #### Connect signals
         # Log file changes
@@ -229,9 +246,18 @@ class coolerSysLogWidget(QtWidgets.QWidget):
         self.monitors = []
 
     def changePath(self, new_path):
+        if new_path is None or new_path == '':
+            return
         self.coolersyslog_path = new_path
         self.manager.changePath(self.coolersyslog_path)
         self.coolerSysLogPathChanged.emit(new_path)
+        self.loadLatestLogLines()
+
+    def loadLatestLogLines(self):
+        self.readerWidget.resetLogTexts()
+        self.readerWidget.addLogTexts(
+            self.manager.getLatestLogLines(localvars.COOLERSYSLOG_MAX_LINES_IN_READER)
+        )
 
     def processesNewLines(self, lines):
         triggered_lines = []
