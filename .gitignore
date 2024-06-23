@@ -1,6 +1,7 @@
 *.log
 *.config
 *.monitor
+*.coolersyslog
 testEmails
 testEmails/*
 tests/test_logs
@@ -13,3 +14,4 @@ __pycache__/*
 .idea
 .idea/*
 history.monitor
+history.coolersyslog

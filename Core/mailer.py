@@ -23,6 +23,19 @@ Sincerely,
 Triton Fridge
 """
 
+def _write_coolersyslog_email(line, triggered_monitor):
+    return f"""
+This alert was triggered by the following CoolerSysLog line:
+
+{line}
+
+Which triggered the following monitor(s):
+""" + "\t" + "\t\n".join(triggered_monitor) + """
+
+Sincerely,
+Triton Fridge
+"""
+
 def _write_test_email(data_dump_str):
     return f"""
 Do not panic, this test email was manually triggered to test the Triton Monitor System
@@ -125,7 +138,19 @@ class Mailer:
         else:
             self._send_email(subject, text)
 
+    def send_coolerSysLog(self, line, monitors):
+        subject = '[URGENT] Triton CoolerSysLog Alert Triggered!'
 
+        text = _write_coolersyslog_email(line, monitors)
+        if DEBUG_MODE:
+            current_time = datetime.now().strftime(f"{DATE_FORMAT}_{TIME_FORMAT}")
+            with open(f"{ROOT_DIR}/testEmails/alert_{current_time.replace(':','-')}.email", 'w', encoding='utf-8') as f:
+                f.write(f"Subject: {subject}\n")
+                f.write(f"Recipients: {', '.join(RECIPIENTS)}\n")
+                f.write(f"Body:\n")
+                f.write(text)
+        else:
+            self._send_email(subject, text)
 
     def _send_email(self, subject, text):
         # THis sends the email with smptlib

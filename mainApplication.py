@@ -150,6 +150,7 @@ class MainApplication(QtWidgets.QMainWindow):
             if len(monitorHistory.keys()) > 0:
                 json.dump(monitorHistory, f)
 
+
     def init_ui(self):
         ########### Create docks
         # monitorsWidget
@@ -175,7 +176,7 @@ class MainApplication(QtWidgets.QMainWindow):
         self.dock_activeMonitorWidget.setContentsMargins(0,0,0,0)
 
         # coolerSysLogMonitorsWidget
-        self.dock_coolerSysLogMonitorWidget = QtWidgets.QDockWidget('coolerSysLog Monitors')
+        self.dock_coolerSysLogMonitorWidget = QtWidgets.QDockWidget('coolerSysLog')
         self.dock_coolerSysLogMonitorWidget.setFeatures(QtWidgets.QDockWidget.DockWidgetFloatable |
                  QtWidgets.QDockWidget.DockWidgetMovable)
         #self.dock_coolerSysLogMonitorWidget.setFloating(True)
@@ -259,6 +260,21 @@ class MainApplication(QtWidgets.QMainWindow):
     def coolerSysLogMonitorCallback(self, string, monitors):
         print("Implement me!")
         logging.info("Implement me!")
+        print("Also, reminder to check github for list of features you are supposed to add")
+
+    def load_coolerSysLogMonitors(self, fname='history.coolersyslog'):
+        if os.path.exists(fname):
+            with open(fname, 'r') as f:
+                try:
+                    monitors = [l.strip('\n') for l in f.readlines()]
+                    self.coolerSysLogWidget.importMonitors(monitors)
+                except Exception as e:
+                    logging.warning(f"Cannot load coolerSysLog history: {str(e)}")
+
+    def export_coolerSysLogMonitors(self, fname='history.coolersyslog'):
+        with open(fname, 'w') as f:
+            monitors = self.coolerSysLogWidget.exportMonitors()
+            f.write("\n".join(monitors))
 
     def resizeWidgets(self):
         #print("resizeWidgets")
@@ -536,6 +552,7 @@ if __name__ == "__main__":
         w.init_ui()
         w.init_threads()
         w.load_monitors(fname='history.monitor')
+        w.load_coolerSysLogMonitors(fname='history.coolersyslog')
         w.show()
         try:
             exitcode = w.app.exec()
@@ -545,6 +562,7 @@ if __name__ == "__main__":
             print(traceback.format_exc())
             exitcode = RESTART_EXIT_CODE
         w.export_monitors(fname='history.monitor')
+        w.export_coolerSysLogMonitors(fname='history.coolersyslog')
         w.close_threads()
         if exitcode == RESTART_EXIT_CODE:
             refresh_all_modules()

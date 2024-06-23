@@ -122,12 +122,10 @@ class coolerSysLogMonitorWidget(QtWidgets.QWidget):
         # Connect signals and slots
         self.add_button.clicked.connect(self.add_monitor)
         self.remove_button.clicked.connect(self.remove_monitor)
-        # Do it in function instead self.email_input.returnPressed.connect(self.add_email)
 
     def add_monitor(self, monitor=None):
         if not monitor:
             monitor = self.input.text()
-        print()
         if monitor:
             monitors = self.model.stringList()
             if monitor not in monitors:
@@ -135,8 +133,9 @@ class coolerSysLogMonitorWidget(QtWidgets.QWidget):
                 self.model.setStringList(monitors)
                 self.input.clear()
             else:
-                QtWidgets.QMessageBox.warning(self, 'Duplicate Monitor', 'This email address is already in the list.')
+                QtWidgets.QMessageBox.warning(self, 'Duplicate Monitor', 'This monitor is already in the list.')
         self.coolerSysLogMonitorChanged.emit()
+
 
     def keyPressEvent(self, event):
         if (
@@ -152,11 +151,11 @@ class coolerSysLogMonitorWidget(QtWidgets.QWidget):
         selected_indexes = self.list_view.selectedIndexes()
         if selected_indexes:
             index = selected_indexes[0]
-            emails = self.model.stringList()
-            del emails[index.row()]
-            self.model.setStringList(emails)
+            monitors = self.model.stringList()
+            del monitors[index.row()]
+            self.model.setStringList(monitors)
         else:
-            QtWidgets.QMessageBox.warning(self, 'No Selection', 'Please select an email address to remove.')
+            QtWidgets.QMessageBox.warning(self, 'No Selection', 'Please select a monitor to remove it.')
         self.coolerSysLogMonitorChanged.emit()
 
     def remove_monitors(self):
@@ -166,18 +165,21 @@ class coolerSysLogMonitorWidget(QtWidgets.QWidget):
     def get_monitors(self):
         return self.model.stringList()
 
+    def set_monitors(self, monitors):
+        # First remove all
+        self.remove_monitors()
+        for monitor in monitors:
+            self.add_monitor(monitor)
+
     def getValue(self):
         return self.get_monitors()
 
     def setValue(self, values):
-        # First remove all
-        self.remove_monitors()
-        for email in values:
-            self.add_monitor(email)
+        self.set_monitors(values)
 
     def text(self):
-        emails = self.get_monitors()
-        return emails if len(emails) > 0 else None
+        monitors = self.get_monitors()
+        return monitors if len(monitors) > 0 else None
 
 
 
@@ -234,12 +236,19 @@ class coolerSysLogWidget(QtWidgets.QWidget):
 
     def monitorChange(self):
         self.monitors = self.monitorWidget.get_monitors()
+        logging.debug(f"Monitors changed, they are now: {', '.join(self.monitors)}")
 
     def monitorTriggered(self, s, monitors):
         logging.debug(f"coolerSysLog Monitor Triggered: {s}\ntriggered monitor(s): {', '.join(monitors)}")
         print(f"coolerSysLog Monitors Triggered: {s}")
         print(f"triggered monitor(s): {', '.join(monitors)}")
 
+    def exportMonitors(self):
+        return self.monitorWidget.get_monitors()
+
+    def importMonitors(self, monitors):
+        self.monitorWidget.remove_monitors()
+        self.monitorWidget.set_monitors(monitors)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
