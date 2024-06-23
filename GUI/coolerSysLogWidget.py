@@ -230,9 +230,24 @@ class coolerSysLogWidget(QtWidgets.QWidget):
         self.coolerSysLogPathChanged.emit(new_path)
 
     def processesNewLines(self, lines):
+        triggered_lines = []
+        triggered_monitors = []
+        for line in lines:
+            if any([m in line for m in self.monitors]):
+                triggered_lines.append(line)
+                triggered_monitors += [m for m in self.monitors if m in line]
+
+        if len(triggered_lines) > 0:
+            self.coolerSysLogMonitorTriggered.emit(
+                "".join(triggered_lines),
+                list(set(triggered_monitors))
+            )
+        """
+        # This would send an alert once per line, instead of once per read
         for line in lines:
             if any([m in line for m in self.monitors]):
                 self.coolerSysLogMonitorTriggered.emit(line, [m for m in self.monitors if m in line])
+        """
 
     def monitorChange(self):
         self.monitors = self.monitorWidget.get_monitors()

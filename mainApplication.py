@@ -258,9 +258,12 @@ class MainApplication(QtWidgets.QMainWindow):
             print(f"Monitor {obj['monitor']} deactivated")
 
     def coolerSysLogMonitorCallback(self, string, monitors):
-        print("Implement me!")
-        logging.info("Implement me!")
-        print("Also, reminder to check github for list of features you are supposed to add")
+        if len(monitors) > 0:
+            self.mailer.send_coolerSysLog(string, monitors)
+        else:
+            logging.warning("CoolerSysLog triggered an alert but no monitors were provided so nothing no email has been sent")
+
+        print("Reminder to check github for list of features you are supposed to add")
 
     def load_coolerSysLogMonitors(self, fname='history.coolersyslog'):
         if os.path.exists(fname):

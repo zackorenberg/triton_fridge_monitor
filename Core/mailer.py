@@ -12,8 +12,7 @@ localvars.load_globals(localvars, globals())
 from tabulate import tabulate
 
 def _write_alert_email(triggered_monitors_str, data_dump_str):
-    return f"""
-The following monitors triggered this alert:
+    return f"""The following monitors triggered this alert:
 {triggered_monitors_str}
 
 Fridge log dump:
@@ -24,21 +23,20 @@ Triton Fridge
 """
 
 def _write_coolersyslog_email(line, triggered_monitor):
-    return f"""
-This alert was triggered by the following CoolerSysLog line:
+    line = line.strip('\n')
+    return f"""This alert was triggered by the following CoolerSysLog line(s):
 
 {line}
 
-Which triggered the following monitor(s):
-""" + "\t" + "\t\n".join(triggered_monitor) + """
+Caused by the following monitor(s):
+""" + "\t" + "\n\t".join(triggered_monitor) + """
 
 Sincerely,
 Triton Fridge
 """
 
 def _write_test_email(data_dump_str):
-    return f"""
-Do not panic, this test email was manually triggered to test the Triton Monitor System
+    return f"""Do not panic, this test email was manually triggered to test the Triton Monitor System
 
 Fridge log dump:
 {data_dump_str}
