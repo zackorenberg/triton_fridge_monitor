@@ -70,7 +70,8 @@ class coolerSysLogReaderWidget(QtWidgets.QWidget):
         if len(lines) == 0:
             return str(self.coolerSysLogTextEdit.toPlainText())
         else:
-            self.coolerSysLogTextEdit.setPlainText("\n".join(self.addLogTexts().split("\n")[-400:]) + "".join(lines)) # No \n join because it is a direct readlines()
+            #self.coolerSysLogTextEdit.setPlainText("\n".join(self.addLogTexts().split("\n")[-400:]) + "".join(lines)) # No \n join because it is a direct readlines()
+            self.coolerSysLogTextEdit.setPlainText("\n".join((self.addLogTexts().split("\n") + [l.rstrip('\n') for l in lines if l.rstrip('\n')])[-localvars.COOLERSYSLOG_MAX_LINES_IN_READER:])) # No \n join because it is a direct readlines()
             self.automaticScroll()
 
     def automaticScroll(self):
@@ -193,6 +194,9 @@ class coolerSysLogWidget(QtWidgets.QWidget):
         self.directoryWidget = coolerSysLogPathWidget()
         self.monitorWidget = coolerSysLogMonitorWidget()
         self.readerWidget = coolerSysLogReaderWidget()
+
+        if self.coolersyslog_path:
+            self.directoryWidget.set_current_directory(self.coolersyslog_path)
         if SIDE_BY_SIDE_COOLERSYSLOGWIDGET:
             self.main_layout = QtWidgets.QGridLayout()
             self.main_layout.addWidget(self.directoryWidget, 0, 0, 1, 2)
@@ -232,11 +236,23 @@ class coolerSysLogWidget(QtWidgets.QWidget):
     def processesNewLines(self, lines):
         triggered_lines = []
         triggered_monitors = []
+
         for line in lines:
-            if any([m in line for m in self.monitors]):
+            if any([(m in line) if localvars.COOLERSYSLOG_CASE_SENSITIVE else (m.lower() in line.lower()) for m in self.monitors]):
                 triggered_lines.append(line)
                 triggered_monitors += [m for m in self.monitors if m in line]
-
+        """ # Only one comparison for extremely minor performance boost
+        if localvars.COOLERSYSLOG_CASE_SENSITIVE:
+            for line in lines:
+                if any([m in line for m in self.monitors]):
+                    triggered_lines.append(line)
+                    triggered_monitors += [m for m in self.monitors if m in line]
+        else:
+            for line in lines:
+                if any([m.lower() in line.lower() for m in self.monitors]):
+                    triggered_lines.append(line)
+                    triggered_monitors += [m for m in self.monitors if m in line]
+        """
         if len(triggered_lines) > 0:
             self.coolerSysLogMonitorTriggered.emit(
                 "".join(triggered_lines),

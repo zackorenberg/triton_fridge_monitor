@@ -88,7 +88,7 @@ class MainApplication(QtWidgets.QMainWindow):
         self.monitorsWidget = MonitorsWidget()
         self.monitorManager = MonitorManager(self)
         self.activeMonitorWidget = ActiveMonitorsWidget()
-        self.coolerSysLogWidget = coolerSysLogWidget()
+        self.coolerSysLogWidget = coolerSysLogWidget(coolersyslog_path=localvars.COOLERSYSLOG_PATH)
 
 
         self.mailer = Mailer(localvars.RECIPIENTS)
@@ -117,6 +117,7 @@ class MainApplication(QtWidgets.QMainWindow):
 
         # Connect coolerSysLogWidget to here (TODO: set it up directly to mailer)
         self.coolerSysLogWidget.coolerSysLogMonitorTriggered.connect(self.coolerSysLogMonitorCallback)
+        self.coolerSysLogWidget.coolerSysLogPathChanged.connect(self.coolerSysLogMonitorDirectoryChangeCallback)
 
         # Add icon
         self.setWindowIcon(QtGui.QIcon(localvars.ICON_PATH))
@@ -264,6 +265,10 @@ class MainApplication(QtWidgets.QMainWindow):
             logging.warning("CoolerSysLog triggered an alert but no monitors were provided so nothing no email has been sent")
 
         print("Reminder to check github for list of features you are supposed to add")
+
+    def coolerSysLogMonitorDirectoryChangeCallback(self, new_path):
+        config.set_config_value(COOLERSYSLOG_PATH=new_path)
+        config.write_config_file()
 
     def load_coolerSysLogMonitors(self, fname='history.coolersyslog'):
         if os.path.exists(fname):
