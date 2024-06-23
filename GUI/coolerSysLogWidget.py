@@ -1,10 +1,12 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 import localvars
 import sys
+from logger import Logger
+logging = Logger(__file__)
 
 SIDE_BY_SIDE_COOLERSYSLOGWIDGET = False
 
-
+from Core.coolerSysLogMonitor import coolerSysLogManager
 
 
 class coolerSysLogPathWidget(QtWidgets.QWidget):
@@ -34,7 +36,6 @@ class coolerSysLogPathWidget(QtWidgets.QWidget):
 
     def set_current_directory(self, current_value = None):
         self.directoryLineEdit.setText(current_value)
-        self.emitChanges()
 
 
     def selectCallback(self):
@@ -46,16 +47,17 @@ class coolerSysLogPathWidget(QtWidgets.QWidget):
             options=options
         )
         self.set_current_directory(directory)
+        self.emitChanges()
 
     def emitChanges(self):
         self.coolerSysLogPathSelected.emit(self.directoryLineEdit.text())
 
 
 class coolerSysLogReaderWidget(QtWidgets.QWidget):
-    coolerSysLogLine = QtCore.pyqtSignal(str)
+    coolerSysLogLines = QtCore.pyqtSignal(list)
     def __init__(self):
         super().__init__()
-        self.coolerSysLogLine.connect(self.addLogText)
+        self.coolerSysLogLines.connect(self.addLogTexts)
         self.coolerSysLogTextEdit = QtWidgets.QTextEdit()
         self.coolerSysLogTextEdit.setReadOnly(True)
         self.verticalLayout = QtWidgets.QVBoxLayout()
@@ -63,12 +65,12 @@ class coolerSysLogReaderWidget(QtWidgets.QWidget):
         self.verticalLayout.setContentsMargins(0,0,0,0)
         self.setLayout(self.verticalLayout)
 
-    def addLogText(self, string=None):
+    def addLogTexts(self, lines=[]):
         """ get/set function of console box """
-        if string is None:
+        if len(lines) == 0:
             return str(self.coolerSysLogTextEdit.toPlainText())
         else:
-            self.coolerSysLogTextEdit.setPlainText(self.addLogText() + str(string))
+            self.coolerSysLogTextEdit.setPlainText("\n".join(self.addLogTexts().split("\n")[-400:]) + "".join(lines)) # No \n join because it is a direct readlines()
             self.automaticScroll()
 
     def automaticScroll(self):
@@ -123,8 +125,9 @@ class coolerSysLogMonitorWidget(QtWidgets.QWidget):
         # Do it in function instead self.email_input.returnPressed.connect(self.add_email)
 
     def add_monitor(self, monitor=None):
-        if monitor is None:
+        if not monitor:
             monitor = self.input.text()
+        print()
         if monitor:
             monitors = self.model.stringList()
             if monitor not in monitors:
@@ -180,8 +183,11 @@ class coolerSysLogMonitorWidget(QtWidgets.QWidget):
 
 class coolerSysLogWidget(QtWidgets.QWidget):
     coolerSysLogMonitorTriggered = QtCore.pyqtSignal(str)
-    def __init__(self):
+    coolerSysLogPathChanged = QtCore.pyqtSignal(str)
+    def __init__(self, coolersyslog_path=None):
         super().__init__()
+        self.coolersyslog_path = coolersyslog_path
+
         self.directoryWidget = coolerSysLogPathWidget()
         self.monitorWidget = coolerSysLogMonitorWidget()
         self.readerWidget = coolerSysLogReaderWidget()
@@ -197,6 +203,41 @@ class coolerSysLogWidget(QtWidgets.QWidget):
             self.main_layout.addWidget(self.monitorWidget)
             self.main_layout.addWidget(self.readerWidget)
             self.setLayout(self.main_layout)
+
+        # Create and start manager
+        self.manager = coolerSysLogManager(coolersyslog_path=coolersyslog_path)
+        self.manager.startObserver()
+
+        #### Connect signals
+        # Log file changes
+        self.manager.coolerSysLogLines.connect(self.readerWidget.coolerSysLogLines)
+        self.manager.coolerSysLogLines.connect(self.processesNewLines)
+        # Monitors changed
+        self.monitorWidget.coolerSysLogMonitorChanged.connect(self.monitorChange)
+        # Directory changed
+        self.directoryWidget.coolerSysLogPathSelected.connect(self.changePath)
+        self.coolerSysLogPathChanged.connect(self.directoryWidget.coolerSysLogPathChanged)
+
+        self.coolerSysLogMonitorTriggered.connect(self.monitorTriggered)
+
+        self.monitors = []
+
+    def changePath(self, new_path):
+        self.coolersyslog_path = new_path
+        self.manager.changePath(self.coolersyslog_path)
+        self.coolerSysLogPathChanged.emit(new_path)
+
+    def processesNewLines(self, lines):
+        for line in lines:
+            if any([m in line for m in self.monitors]):
+                self.coolerSysLogMonitorTriggered.emit(line)
+
+    def monitorChange(self):
+        self.monitors = self.monitorWidget.get_monitors()
+
+    def monitorTriggered(self, s):
+        logging.debug(f"coolerSysLog Monitor Triggered: {s}")
+        print(f"coolerSysLog Monitor Triggered: {s}")
 
 
 if __name__ == "__main__":
